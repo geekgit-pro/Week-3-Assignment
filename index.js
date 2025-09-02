@@ -1,11 +1,31 @@
 const express = require('express');
 const app = express();
+const fs = require('fs');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const port = 3005;
 
+let requestCount = 0;
+
+function requestCalculator(req, res, next) {
+    requestCount++;
+    console.log(`Request Count: ${requestCount}`);
+    next();
+}
+
+function loggingMiddleware(req, res, next) {
+    console.log('Response sent for:', req.url);
+    const log = `${Date.now()} : ${req.path} : 'New Request Received\n : `;
+    fs.appendFile("log.txt", log, (err, data)=> {
+        if (err) {
+            res.statusCode = 500;
+            return res.send("Server error");
+        }
+    });
+    next(); // can omit if it's the last one
+}
 
 function userCheckMiddleware (req, res, next) {
     let username = req.headers['username'];
@@ -40,6 +60,8 @@ function heartCheckMiddleware (req, res, next) {
         return next();
 }
 
+app.use(loggingMiddleware);
+app.use(requestCalculator);
 app.use(userCheckMiddleware);
 
 
