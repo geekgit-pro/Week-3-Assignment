@@ -65,14 +65,14 @@ app.post('/heart', heartCheckMiddleware, (req, res) => {
     if(req.query.heartBpm > 60 && req.query.heartBpm < 100) {
         res.status(200).json({
             message: 'The heart is functioning well',
-            heartBpm: `The heart BPM is ${req.body.heartBpm}`,
+            heartBpm: `The heart BPM is ${req.query.heartBpm}`,
             userMsg : `You are fit ${req.headers['username']}`
         });
     }
     else {
         res.status(200).json({
             message: 'The heart is not functioning well',
-            heartBpm: `The heart BPM ${req.body.heartBpm} not normal range`,
+            heartBpm: `The heart BPM ${req.query.heartBpm} not normal range`,
             userMsg : `Take care ${req.headers['username']}`
         });
     }
