@@ -12,7 +12,7 @@ let requestCount = 0;
 function requestCalculator(req, res, next) {
     requestCount++;
     console.log(`Request Count: ${requestCount}`);
-    next();
+    return next();
 }
 
 function loggingMiddleware(req, res, next) {
@@ -34,21 +34,35 @@ function userCheckMiddleware (req, res, next) {
         const err = new Error('Username and password are required');
         err.status = 400;
         console.error(err.message);
-        next(err);
+        return next(err);
     }
     else if (username === 'aijaz' && password === 'password123') {
          return next();
+    }
+    else {
+        const err = new Error('Invalid username or password');
+        err.status = 403;
+        console.error(err.message);
+        return next(err);
     }
 }
 
 function kidneyCheckMiddleware (req, res, next) {
     let noOfKidneys = req.body.noOfKidneys;
     if (!noOfKidneys) {
-        return res.status(400).send('Number of kidneys is required');
+        const err = new Error('Number of kidneys is required');
+        err.status = 400;
+        console.error(err.message);
+        return next(err);
     }
     if(noOfKidneys > 0 && noOfKidneys <= 2) {
         return next();
-    }   
+    }
+    
+    const err = new Error('Invalid number of kidneys');
+    err.status = 403;
+    console.error(err.message);
+    next(err);
 }
 
 function heartCheckMiddleware (req, res, next) {
@@ -100,7 +114,15 @@ app.post('/heart', heartCheckMiddleware, (req, res) => {
     }
 });
 
-
+app.use((err, req, res, next) => {
+    res.status(err.status || 500).json({
+        error: {
+            message: err.message || 'Internal Server Error',
+            status: err.status || 500       
+        }
+    });
+    //next();
+});
 
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
