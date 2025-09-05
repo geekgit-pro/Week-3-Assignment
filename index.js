@@ -1,3 +1,4 @@
+const { error } = require('console');
 const express = require('express');
 const app = express();
 const fs = require('fs');
@@ -8,12 +9,43 @@ app.use(express.urlencoded({ extended: true }));
 const port = 3005;
 
 let requestCount = 0;
+let errorCount = 0;
+
+let noOfRequestsPerUser = {};
+
+setInterval(() => {
+    noOfRequestsPerUser = {};
+}, 15000);
 
 function requestCalculator(req, res, next) {
     requestCount++;
     console.log(`Request Count: ${requestCount}`);
     return next();
 }
+
+function rateLimiter(req, res, next) {
+    const userId = req.headers['userid'];
+    if(!userId) {
+        const err = new Error('UserId header is required');
+        err.status = 400;
+        console.error(err.message);
+        return next(err);
+    }
+
+    if(!noOfRequestsPerUser[userId])
+        noOfRequestsPerUser[userId] = 1;
+    else
+        noOfRequestsPerUser[userId]++;
+
+    if(noOfRequestsPerUser[userId] > 5) {
+        const err = new Error('Too many requests from this user');
+        err.status = 429;
+        console.error(err.message);
+        return next(err);
+    }
+    return next();
+}
+
 
 function loggingMiddleware(req, res, next) {
     console.log('Response sent for:', req.url);
@@ -26,6 +58,7 @@ function loggingMiddleware(req, res, next) {
     });
     next(); // can omit if it's the last one
 }
+
 
 function userCheckMiddleware (req, res, next) {
     let username = req.headers['username'];
@@ -68,7 +101,10 @@ function kidneyCheckMiddleware (req, res, next) {
 function heartCheckMiddleware (req, res, next) {
     let heartBpm = req.query.heartBpm;
     if (!heartBpm) {
-        return res.status(400).send('Heart BPM is required');
+        const err = new Error('Number of kidneys is required');
+        err.status = 400;
+        console.error(err.message);
+        return next(err);
     }
     else
         return next();
@@ -76,6 +112,7 @@ function heartCheckMiddleware (req, res, next) {
 
 app.use(loggingMiddleware);
 app.use(requestCalculator);
+app.use(rateLimiter);
 app.use(userCheckMiddleware);
 
 
@@ -114,12 +151,22 @@ app.post('/heart', heartCheckMiddleware, (req, res) => {
     }
 });
 
+
+app.use((err, req, res, next) => {
+    errorCount++;
+    console.log(`Error Count: ${errorCount}`);
+    return next(err);
+    //next();
+});
+
+
 app.use((err, req, res, next) => {
     res.status(err.status || 500).json({
         error: {
             message: err.message || 'Internal Server Error',
             status: err.status || 500       
-        }
+        }, 
+        errorCount
     });
     //next();
 });
