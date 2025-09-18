@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const zod = require('zod');
+const { ZodError } = require('zod');
 const mongoose = require('mongoose');
 
 const port = 3008;
@@ -37,18 +38,51 @@ const courseSchema = new mongoose.Schema({
 });
 const Course = mongoose.model('Courses', courseSchema);
 
-app.post('/admin/signup', (req, res) => {
+function errorBuilder(message, status = 500, details = null) {
+    const err = new Error(message);
+    err.status = status;
+    if (details) err.details = details; // support extra info if needed
+    console.log(err);
+    return err;
+}
+
+function zodMiddleware(req, res, next) {
+
+    const credentialSchema = zod.object({
+        username : zod.string().
+                            min(3,"Username must be 3 characters long")
+                            .max(10,"Username can't blonger that 10 characters"),
+        password : zod.string().
+                            min(3,"Password must be 3 characters long")
+                            .max(10," can't blonger that 10 characters")
+    });
+    try {
+        credentialSchema.parse(req.body);
+        next();
+    } catch (err) {
+        if (err instanceof ZodError) {
+            const errors = err.issues.map(issue => ({
+                message: issue.message,
+                field: issue.path[0],
+            }));
+
+            console.error("Validation failed and here is the array:", errors);
+            err.status = 400;
+            err.details = errors;
+
+            return next(errorBuilder('Username of password validation failed', 400, errors));
+        }
+        console.error("Unexpected error in middleware:", err);
+
+        err.status = 500;
+        return next(err);
+    }
+}
+
+app.post('/admin/signup',zodMiddleware, (req, res, next) => {
     const username = req.body.username;
     const password = req.body.password;
 
-    const usernameCheck = zod.string().min(3).max(10);
-    const passwordCheck = zod.string().min(3).max(20);
-
-    if (!usernameCheck.safeParse(username).success || !passwordCheck.safeParse(password).success) {
-        return res.status(403).json({
-            msg: 'Username or password is not valid'
-        });
-    }
     const newAdmin = new Admin({ username, password });
     newAdmin.save()
         .then(() => {
@@ -64,18 +98,10 @@ app.post('/admin/signup', (req, res) => {
         });
 });
 
-app.post('/user/signup', (req, res) => {
+app.post('/user/signup', zodMiddleware, (req, res, next) => {
     const username = req.body.username;
     const password = req.body.password;
 
-    const usernameCheck = zod.string().min(3).max(10);
-    const passwordCheck = zod.string().min(3).max(20);
-
-    if (!usernameCheck.safeParse(username).success || !passwordCheck.safeParse(password).success) {
-        return res.status(403).json({
-            msg: 'Username or password is not valid'
-        });
-    }
     const newUser = new User({ username, password });
     newUser.save()
         .then(() => {
@@ -91,20 +117,24 @@ app.post('/user/signup', (req, res) => {
         });
 });
 
-app.post('/admin/courses', async (req, res) => {
+app.post('/admin/courses', async (req, res, next) => {
     const username = req.headers['username'];
     const password = req.headers['password']
 
     const admin = await Admin.findOne({username, password});
-    if(!admin)
-        return res.status(403).json({
-            msg : 'Wrong admin credentials'
-    })
+
+    if(!admin) {
+        return next(errorBuilder('Wrong admin credentials', 403));
+    }
 
     const title = req.body.title;
     const description = req.body.description;
     const price = req.body.price;
     const imageLink = req.body.imageLink;
+
+    if(!title || !description || !price || !imageLink) {
+        return next(errorBuilder('Please input proper detail for course', 401));
+    }
 
     const newCourse = new Course({ title, description, price, imageLink });
     newCourse.save()
@@ -122,10 +152,13 @@ app.post('/admin/courses', async (req, res) => {
         });
 });
 
-app.post('/user/course/:courseId', async (req, res) => {
+app.post('/user/course/:courseId', async (req, res, next) => {
     const username = req.headers['username'];
     const courseId = req.params.courseId;
     const course = await Course.findById(courseId);
+    if(!course) {
+        return next(errorBuilder('Course meant to purchase does not exist',401));
+    }
     await User.findOneAndUpdate({username},{
         "$push": {
               purchasedCourses: {
@@ -142,16 +175,31 @@ app.post('/user/course/:courseId', async (req, res) => {
 
 });
 
-app.get('/admin/courses', async (req, res) => {
+app.get('/admin/courses', async (req, res, next) => {
     const username = req.headers['username'];
     const password = req.headers['password']
 
     const admin = await Admin.findOne({username, password});
-    if(!admin)
-        return res.status(403).json({
-            msg : 'Wrong admin credentials'
-    })
+    if(!admin) {
+        return next(errorBuilder('The admin credentials are wrong or admin does not exist'),401);
+    }
+    
+    const courses = await Course.find();
 
+    return res.status(200).json({
+        courses : courses
+    });
+
+});
+
+app.post('/user/courses', async (req, res, next) => {
+    const username = req.headers['username'];
+    const password = req.headers['password']
+
+    const user = await User.findOne({username, password});
+    if(!user) {
+        return next(errorBuilder('The user credentials are wrong or user does not exist'),401);
+    }
 
     const courses = await Course.find();
 
@@ -161,39 +209,29 @@ app.get('/admin/courses', async (req, res) => {
 
 });
 
-app.get('/user/courses', async (req, res) => {
+app.get('/user/purchasedCourses', async (req, res, next) => {
     const username = req.headers['username'];
     const password = req.headers['password']
 
     const user = await User.findOne({username, password});
-    if(!user)
-        return res.status(403).json({
-            msg : 'Wrong admin credentials'
-    })
-
-
-    const courses = await Course.find();
-
-    return res.status(200).json({
-        courses : courses
-    });
-
-});
-
-app.get('/user/purchasedCourses', async (req, res) => {
-    const username = req.headers['username'];
-    const password = req.headers['password']
-
-    const user = await User.findOne({username, password});
-    if(!user)
-        return res.status(403).json({
-            msg : 'Wrong admin credentials'
-    })
+    if(!user) {
+        return next(errorBuilder('The user credentials are wrong or user does not exist'),401);
+    }
 
     res.status(200).json({
     purchasedCourses: user.purchasedCourses
     });
 
+});
+
+app.use((err, req, res, next) => {
+    res.status(err.status || 500).json({
+            error: {
+                message: err.message || 'Internal Server Error',
+                status: err.status || 500,
+                details: err.details || null      
+            }
+    })
 });
 
 
