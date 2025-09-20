@@ -1,29 +1,45 @@
+const {z, ZodError}= require('zod');
+const errorObj = require('../util/errorBuilder');
 
-const zod = require('zod');
 
 function adminValidation(req, res, next) {
     const username = req.body.username;
-    const password = req.body.password
-    const adminSchema = zod.object( {
-        username : zod.string()
+    const password = req.body.password;
+    const adminSchema = z.object({
+        username : z.string()
                     .min(3,'Username cant be less that 3 characters')
                     .max(10,'Usernmae cant be more thatn 10 characters'),
-        password : zod.string()
+        password : z.string()
                     .min(3,'Password cant be less that 3 characters')
                     .max(10,'Password cant be more thatn 10 characters')
         
     });
     console.log(adminSchema);
 
-    const admin = adminSchema.safeParse({username, password});
-    console.log(admin);
-
-    if(!admin.success)
-        return res.status(400).json({
-            message : 'Username / password is not corrrect'
-        });
-
-    return next();
+    try {
+        const admin = adminSchema.parse({username, password});
+        console.log("hi this is ",admin);
+        return next();
+    } catch (error) {
+        if(error instanceof ZodError) {
+            console.log("This is the big error object", error);
+            error.status = 400;
+            error.message = 'Username or password validation failed'
+            const errors = error.issues.map((issue)=>{
+                const myobj = {
+                    message : issue.message,
+                    field : issue.path[0]
+                }
+                console.log("some object", myobj);
+                return myobj;
+            }
+        );
+        console.log("hi this is errors array", errors);
+            
+            return next(errorObj.errorBuilder(error.message,error.status,errors));
+        }
+        return next(errorObj.errorBuilder(error.message,error.status));
+    }
 
 }
 

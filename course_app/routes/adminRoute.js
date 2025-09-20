@@ -2,6 +2,7 @@ const express = require('express');
 const Admin = require('../db/adminModel');
 const Course = require('../db/courseModel');
 const adminValidation = require('../middleware/adminMiddleware');
+const errorObj = require('../util/errorBuilder');
 const router = express.Router();
 
 
@@ -19,14 +20,11 @@ router.post('/signup', adminValidation, async function (req, res, next) {
         return res.status(200).json({
             msg : 'Admin signed up succesfully !',
             admin_obj : newAdmin,
-        })
+        });
     })
     .catch((err)=>{
         console.log(err);
-        return res.status(500).json({
-            message : err.message,
-            code : err.status
-        });
+        return next(errorObj.errorBuilder('INTERNAL SERVER ERROR', 500));
     });
 
 });
@@ -39,9 +37,7 @@ router.post('/courses', async function (req,res,next) {
     const admin = await Admin.findOne({username : username});
 
     if(!admin) {
-        return res.status(400).json({
-            message : 'Admin details is not correct'
-        });
+        return next(errorObj.errorBuilder('Admin details is not correct', 400));
     }
 
     const title = req.body.title;
@@ -63,10 +59,7 @@ router.post('/courses', async function (req,res,next) {
         });
     })
     .catch((err)=>{
-        return res.status(500).json({
-            message : err.message,
-            code : err.status
-        })
+        return next(errorObj.errorBuilder('INTERNAL SERVER ERROR',500));
     });
 });
 
@@ -78,9 +71,7 @@ router.get('/courses', async function (req, res, next) {
     const admin = await Admin.findOne({username : username});
 
     if(!admin) {
-        return res.status(400).json({
-            message : 'Admin details is not correct'
-        });
+       return next(errorObj.errorBuilder('Admin details is not correct', 400));
     }
 
     const courses = await Course.find();
@@ -90,6 +81,8 @@ router.get('/courses', async function (req, res, next) {
     });
 
 });
+
+router.use(errorObj.errorBuilder);
 
 
 module.exports = router;
