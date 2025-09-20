@@ -22,18 +22,16 @@ function adminValidation(req, res, next) {
         return next();
     } catch (error) {
         if(error instanceof ZodError) {
-            console.log("This is the big error object", error);
+            console.log("This is the big error object", JSON.stringify(error));
+            console.log("hi this is array of zod.issues", error.issues)
             error.status = 400;
             error.message = 'Username or password validation failed'
             const errors = error.issues.map((issue)=>{
-                const myobj = {
+                return {
                     message : issue.message,
                     field : issue.path[0]
                 }
-                console.log("some object", myobj);
-                return myobj;
-            }
-        );
+            });
         console.log("hi this is errors array", errors);
             
             return next(errorObj.errorBuilder(error.message,error.status,errors));

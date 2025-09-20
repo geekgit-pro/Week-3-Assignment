@@ -8,10 +8,10 @@ function errorBuilder(message, code = 500, details) {
 }
 
 function errorHandler(err, req, res, next) {
-    return res.status(500).json({
-        message : err.message || 'INTERNAL SERVER ERROR',
-        details :  err.details,
-        code : err.code || 500
+    return res.status(err.code || 500).json({
+            message : err.message || 'INTERNAL SERVER ERROR',
+            details :  err.details,
+            code : err.code || 500
     });
 }
 module.exports = {
