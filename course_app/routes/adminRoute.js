@@ -3,6 +3,7 @@ const Admin = require('../db/adminModel');
 const Course = require('../db/courseModel');
 const adminValidation = require('../middleware/adminMiddleware');
 const headerValidation = require('../middleware/headerMiddleware');
+const courseInputValidation = require('../middleware/courseMiddleware');
 const errorObj = require('../util/errorBuilder');
 const router = express.Router();
 
@@ -26,25 +27,9 @@ router.post('/signup', adminValidation, async function (req, res, next) {
 });
 
 
-router.post('/courses', headerValidation, async function (req,res,next) {
-
-    const title = req.body.title;
-    const description = req.body.description;
-    const price = req.body.price;
-    const imageLink = req.body.imageLink;
-
-    if(!title || !description || !price || !imageLink) {
-        return next(errorObj.errorBuilder('Please input the required details of course',400));
-    }
-
-
-    const newCourse = new Course({
-        title,
-        description,
-        price,
-        imageLink,
-        creator : req.headers['username']
-    });
+router.post('/courses', headerValidation, courseInputValidation, async function (req,res,next) {
+    let newCourse = new Course(req.body);
+    newCourse.creator = req.header['username'];
     newCourse.save()
     .then(()=>{
         return res.status(200).json({
