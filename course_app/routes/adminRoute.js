@@ -2,6 +2,7 @@ const express = require('express');
 const Admin = require('../db/adminModel');
 const Course = require('../db/courseModel');
 const adminValidation = require('../middleware/adminMiddleware');
+const headerValidation = require('../middleware/headerMiddleware');
 const errorObj = require('../util/errorBuilder');
 const router = express.Router();
 
@@ -30,10 +31,7 @@ router.post('/signup', adminValidation, async function (req, res, next) {
 });
 
 
-router.post('/courses', async function (req,res,next) {
-    const username = req.headers['username'];
-    const password = req.headers['password'];
-
+router.post('/courses', headerValidation, async function (req,res,next) {
     const admin = await Admin.findOne({username : username});
 
     if(!admin) {
@@ -44,6 +42,11 @@ router.post('/courses', async function (req,res,next) {
     const description = req.body.description;
     const price = req.body.price;
     const imageLink = req.body.imageLink;
+
+    if(!title || !description || !price || !imageLink) {
+        return next(errorObj.errorBuilder('Please input the required details of course',400));
+    }
+
 
     const newCourse = new Course({
         title,
@@ -64,10 +67,7 @@ router.post('/courses', async function (req,res,next) {
 });
 
 
-router.get('/courses', async function (req, res, next) {
-    const username = req.headers['username'];
-    const password = req.headers['password'];
-
+router.get('/courses', headerValidation, async function (req, res, next) {
     const admin = await Admin.findOne({username : username});
 
     if(!admin) {
