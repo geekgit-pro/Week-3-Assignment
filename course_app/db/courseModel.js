@@ -12,7 +12,8 @@ const courseSchema = new mongoose.Schema({
     published : {
         type : Boolean,
         default : true
-    }
+    },
+    creator : String
 });
 
 const courseModel = mongoose.model('Courses', courseSchema);

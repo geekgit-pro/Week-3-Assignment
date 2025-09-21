@@ -7,11 +7,6 @@ const errorObj = require('../util/errorBuilder');
 const router = express.Router();
 
 
-
-router.use(express.json());
-router.use(express.urlencoded({extended: true}));
-
-
 router.post('/signup', adminValidation, async function (req, res, next) {
     const username = req.body.username;
     const password = req.body.password;
@@ -32,11 +27,6 @@ router.post('/signup', adminValidation, async function (req, res, next) {
 
 
 router.post('/courses', headerValidation, async function (req,res,next) {
-    const admin = await Admin.findOne({username : username});
-
-    if(!admin) {
-        return next(errorObj.errorBuilder('Admin details is not correct', 400));
-    }
 
     const title = req.body.title;
     const description = req.body.description;
@@ -52,29 +42,26 @@ router.post('/courses', headerValidation, async function (req,res,next) {
         title,
         description,
         price,
-        imageLink
+        imageLink,
+        creator : req.headers['username']
     });
     newCourse.save()
     .then(()=>{
         return res.status(200).json({
-            message : `${username} created course successfully`,
+            message : `${req.headers['username']} created course successfully`,
             courseId : newCourse._id
         });
     })
     .catch((err)=>{
+        console.log("hello brother");
         return next(errorObj.errorBuilder('INTERNAL SERVER ERROR',500));
     });
 });
 
 
 router.get('/courses', headerValidation, async function (req, res, next) {
-    const admin = await Admin.findOne({username : username});
 
-    if(!admin) {
-       return next(errorObj.errorBuilder('Admin details is not correct', 400));
-    }
-
-    const courses = await Course.find();
+    const courses = await Course.find({creator : req.headers['username']});
 
     return res.status(200).json({
         courses : courses
