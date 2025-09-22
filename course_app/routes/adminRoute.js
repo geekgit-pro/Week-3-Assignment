@@ -46,11 +46,15 @@ router.post('/courses', headerValidation, courseInputValidation, async function 
 
 router.get('/courses', headerValidation, async function (req, res, next) {
 
-    const courses = await Course.find({creator : req.headers['username']}, { creator: 0 } );
-
-    return res.status(200).json({
+    try {
+        const courses = await Course.find({creator : req.headers['username']}, { creator: 0 } );
+        return res.status(200).json({
         courses : courses
     });
+    } catch (error) {
+        console.log(error);
+        return next(errorObj.errorBuilder('INTERNAL SERVER ERROR'),500);
+    }
 
 });
 

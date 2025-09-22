@@ -26,13 +26,15 @@ router.post('/signup', userValidation, async function (req, res, next) {
 });
 
 router.get('/courses', headerValidation, async function (req, res, next) {
-    const courses = await Course.find();
-    // if(!courses) {
-    //     return next(errorObj.errorBuilder('INTERNAL SERVER ERROR'), 500);
-    // }
-    return res.status(200).json({
+    try {
+        const courses = await Course.find();
+        return res.status(200).json({
         courses : courses
     });
+    } catch (error) {
+        console.log(error);
+        return next(errorObj.errorBuilder('INTERNAL SERVER ERROR'),500);
+    }
 });
 
 
