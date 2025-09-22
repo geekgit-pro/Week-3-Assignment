@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../db/userModel');
+const Course = require('../db/courseModel');
 const headerValidation = require('../middleware/headerMiddleware');
 const userValidation = require('../middleware/userMiddleware');
 const errorObj = require('../util/errorBuilder');
@@ -22,6 +23,16 @@ router.post('/signup', userValidation, async function (req, res, next) {
         return next(errorObj.errorBuilder('INTERNAL SERVER ERROR', 500));
     });
 
+});
+
+router.get('/courses', headerValidation, async function (req, res, next) {
+    const courses = await Course.find();
+    // if(!courses) {
+    //     return next(errorObj.errorBuilder('INTERNAL SERVER ERROR'), 500);
+    // }
+    return res.status(200).json({
+        courses : courses
+    });
 });
 
 
